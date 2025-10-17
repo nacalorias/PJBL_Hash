@@ -1,0 +1,238 @@
+import java.util.Random;
+
+public class Main {
+
+    public static void main(String[] args) {
+
+        int tamanhoDosDados = 100_000;
+
+        int tamanhoDaTabela = 117_649;
+
+
+        final long seed = 42L;
+
+
+        System.out.println("Gerando " + tamanhoDosDados + " registros...");
+        Registro[] dados = gerarDados(tamanhoDosDados, seed);
+        System.out.println("Dados gerados.");
+        System.out.println("===========================================");
+
+
+
+        System.out.println("\n--- Teste: Encadeamento ---");
+        TabelaHashEncadeamento tabelaEncadeamento = new TabelaHashEncadeamento(tamanhoDaTabela);
+
+        long tempoInicial = System.currentTimeMillis();
+        for (Registro reg : dados) {
+            tabelaEncadeamento.inserir(reg);
+        }
+        long tempoFinal = System.currentTimeMillis();
+
+        System.out.println("Tempo de inserção: " + (tempoFinal - tempoInicial) + " ms");
+        System.out.println("Número de colisões: " + tabelaEncadeamento.getColisoes());
+
+
+
+        System.out.println("\n--- Teste: Sondagem Linear (Pode ser lento) ---");
+        TabelaHashSondagemLinear tabelaLinear = new TabelaHashSondagemLinear(tamanhoDaTabela);
+
+        tempoInicial = System.currentTimeMillis();
+        for (Registro reg : dados) {
+            tabelaLinear.inserir(reg);
+        }
+        tempoFinal = System.currentTimeMillis();
+
+        System.out.println("Tempo de inserção: " + (tempoFinal - tempoInicial) + " ms");
+        System.out.println("Número de colisões: " + tabelaLinear.getColisoes());
+
+
+
+        System.out.println("\n--- Teste: Hash Duplo ---");
+        TabelaHashDuplo tabelaDuplo = new TabelaHashDuplo(tamanhoDaTabela);
+
+        tempoInicial = System.currentTimeMillis();
+        for (Registro reg : dados) {
+            tabelaDuplo.inserir(reg);
+        }
+        tempoFinal = System.currentTimeMillis();
+
+        System.out.println("Tempo de inserção: " + (tempoFinal - tempoInicial) + " ms");
+        System.out.println("Número de colisões: " + tabelaDuplo.getColisoes());
+    }
+
+
+
+    private static Registro[] gerarDados(int quantidade, long seed) {
+        Registro[] dados = new Registro[quantidade];
+        Random random = new Random(seed);
+        for (int i = 0; i < quantidade; i++) {
+
+            dados[i] = new Registro(100_000_000 + random.nextInt(900_000_000));
+        }
+        return dados;
+    }
+}
+
+
+public class Node {
+    private Registro registro;
+    private Node proximo;
+
+    public Node(Registro registro) {
+        this.registro = registro;
+        this.proximo = null;
+    }
+
+    public Registro getRegistro() {
+        return registro;
+    }
+
+    public Node getProximo() {
+        return proximo;
+    }
+
+    public void setProximo(Node proximo) {
+        this.proximo = proximo;
+    }
+}
+
+
+public class Registro {
+    private int codigo;
+
+    public Registro(int codigo) {
+        this.codigo = codigo;
+    }
+
+    public int getCodigo() {
+        return codigo;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%09d", codigo);
+    }
+}
+
+
+public class TabelaHashDuplo {
+    private Registro[] tabela;
+    private int tamanho;
+    private final Registro LUGAR_VAZIO = null;
+    private long colisoes = 0;
+
+    public TabelaHashDuplo(int tamanho) {
+        this.tamanho = tamanho;
+        this.tabela = new Registro[tamanho];
+        for (int i = 0; i < tamanho; i++) {
+            tabela[i] = LUGAR_VAZIO;
+        }
+    }
+
+
+    private int hash1(int chave) {
+        return chave % tamanho;
+    }
+
+
+    private int hash2(int chave) {
+        return 1 + (chave % (tamanho - 1));
+    }
+
+    public void inserir(Registro registro) {
+        int chave = registro.getCodigo();
+        int indice = hash1(chave);
+
+        if (tabela[indice] != LUGAR_VAZIO) {
+            this.colisoes++;
+            int passo = hash2(chave);
+            int i = 1;
+            while (tabela[indice] != LUGAR_VAZIO) {
+                if(i > 1) this.colisoes++;
+
+                indice = (hash1(chave) + i * passo) % tamanho;
+                i++;
+            }
+        }
+
+        tabela[indice] = registro;
+    }
+
+    public Registro buscar(int chave) {
+        int indice = hash1(chave);
+        int passo = hash2(chave);
+        int i = 0;
+
+        while (tabela[indice] != LUGAR_VAZIO) {
+            if (tabela[indice].getCodigo() == chave) {
+                return tabela[indice];
+            }
+            i++;
+            indice = (hash1(chave) + i * passo) % tamanho;
+
+        }
+        return null;
+    }
+
+    public long getColisoes() {
+        return this.colisoes;
+    }
+
+}
+
+
+
+public class TabelaHashSondagemLinear {
+    private Registro[] tabela;
+    private int tamanho;
+    private final Registro LUGAR_VAZIO = null;
+    private long colisoes = 0;
+
+    public TabelaHashSondagemLinear(int tamanho) {
+        this.tamanho = tamanho;
+        this.tabela = new Registro[tamanho];
+        for (int i = 0; i < tamanho; i++) {
+            tabela[i] = LUGAR_VAZIO;
+        }
+    }
+
+
+    private int hash(int chave) {
+        return chave % tamanho;
+    }
+
+    public void inserir(Registro registro) {
+        int chave = registro.getCodigo();
+        int indice = hash(chave);
+        int i = 0;
+
+
+        while (tabela[indice] != LUGAR_VAZIO) {
+            this.colisoes++;
+            i++;
+            indice = (hash(chave) + i) % tamanho;
+        }
+
+        tabela[indice] = registro;
+    }
+
+    public Registro buscar(int chave) {
+        int indice = hash(chave);
+        int i = 0;
+
+        while (tabela[indice] != LUGAR_VAZIO) {
+            if (tabela[indice].getCodigo() == chave) {
+                return tabela[indice];
+            }
+            i++;
+            indice = (hash(chave) + i) % tamanho;
+
+        }
+        return null;
+    }
+
+    public long getColisoes() {
+        return this.colisoes;
+    }
+
+}
